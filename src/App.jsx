@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import Card from "./Card";
 import axios from "axios";
 import { Formik, Form, Field } from "formik";
@@ -13,7 +13,6 @@ const initialValues = {
     lifeStage: [],
     size: [],
     gender: [],
-    location: "",
     sort: "-dateAdded",
 };
 
@@ -23,30 +22,31 @@ export default function App() {
 
     const [pets, setPets] = useState([]);
     const [page, setPage] = useState(1);
+    const [loading, setloading] = useState(false);
     const [queryString, setQueryString] = useState("")
 
-    const getPets = async (queryString) => {
+    const getPets = useCallback(async () => {
         try {
+            setloading(true)
             const result = await axios({
                 method: "get",
-                // url: "https://petofile-api.onrender.com/pets/?" + queryString + `&page=${page}`,
-                url: "http://127.0.0.1:8000/pets/?" + queryString + `&page=${page}`,
+                url: "https://petofile-api.onrender.com/pets/?" + queryString + `&page=${page}`,
             });
 
             setPets(result.data.data.pets);
+            if (result.data.data.pets) setloading(false)
         } catch (error) {
             console.log(error)
 
         }
-    };
+    }, [page, queryString]);
 
     useEffect(() => {
 
-        getPets(queryString)
-    }, [page, queryString]);
+        getPets()
+    }, [getPets]);
 
     const handleSubmit = (values) => {
-
         let query = "adoptionFee[gte]=" + values.minPrice;
         if (!values.maxPrice == "") {
             query = query + "&adoptionFee[lte]=" + values.maxPrice;
@@ -68,9 +68,6 @@ export default function App() {
         }
         if (!values.breed == "") {
             query = query + "&breed=" + values.breed
-        }
-        if (!values.location == "") {
-            query = query + "&location=" + values.location
         }
         query = query + "&sort=" + values.sort
         setQueryString((value) => value = query)
@@ -179,11 +176,6 @@ export default function App() {
                         </div>
 
                         <div className="flex flex-col w-[90%] gap-4">
-                            <label htmlFor="location" className="text-md font-bold"> Location :</label>
-                            <Field placeholder="pune" type="text" id="location" name="location" className="w-full py-1 px-3 rounded-lg focus:outline-none border-[2px]" />
-                        </div>
-
-                        <div className="flex flex-col w-[90%] gap-4">
                             <div className="text-md font-bold"> Sort By :</div>
 
                             <div>
@@ -207,7 +199,10 @@ export default function App() {
             <div className="flex flex-col h-full w-[70%] overflow-y-scroll ">
                 <div className="flex w-full flex-wrap justify-between items-start p-4">
                     {
-                        pets.map((ele, i) => {
+                        loading && <div className="text-center">loading...</div>
+                    }
+                    {
+                        !loading && pets.map((ele, i) => {
                             return (
                                 <div key={i} className="w-[45%] my-4 mx-auto" >
                                     <Card pet={ele} num={i} />
@@ -216,7 +211,7 @@ export default function App() {
                         })
                     }
                     {
-                        pets.length == 0 && <div className="text-center">No results found.</div>
+                        pets.length === 0 && !loading && <div className="text-center">No results found.</div>
                     }
                 </div>
                 <div className="w-full flex justify-between items-center px-8 my-2 h-[10vh]">
